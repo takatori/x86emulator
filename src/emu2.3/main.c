@@ -1,21 +1,33 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+
+/* メモリは1MB */
+#define MEMORY_SIZE (1024 * 1024)
+
+enum Register { EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI, REGISTERS_COUNT };
+char* registers_name[] = {
+  "EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI"};
+
 typedef struct {
   /* 汎用レジスタ　*/
-  unit32_t registers[REGISTERS_COUNT];
+  uint32_t registers[REGISTERS_COUNT];
 
   /* EFLAGSレジスタ */
-  unit32_t eflags;
+  uint32_t eflags;
   
   /* メモリ(バイト列) */
-  unit8_t* memory;
+  uint8_t* memory;
 
   /* プログラムカウンタ */
   /* 実行中の機械語が置いてあるメモリ番地を記憶するレジスタ */
-  unit32_t eip;
+  uint32_t eip;
 } Emulator;
 
 
 /* エミュレータを作成する */
-Emulator* create_emu(size_t size, unit32_t eip, unit32_t esp) {
+Emulator* create_emu(size_t size, uint32_t eip, uint32_t esp) {
 
   Emulator* emu = malloc(sizeof(Emulator));
   emu->memory   = malloc(size);
@@ -38,21 +50,34 @@ void destroy_emu(Emulator* emu) {
 }
 
 
+/* 汎用時レスタとプログラムカウンタの値を標準出力に出力する */
+static void dump_registers(Emulator* emu) {
+  
+  int i;
+
+  for (i = 0; i < REGISTERS_COUNT; i++) {
+    printf("%s = %08x\n", registers_name[i], emu->registers[i]);
+  }
+
+  printf("EIP = %08x\n", emu->eip);
+  
+}
+
 /* memory配列の指定した番地から8ビットの値を取得する関数 
    関数の第二引数にその時のeipからオフセットを指定するとその番地から値を読み取って返す*/
-unit32_t get_code8(Emulator* emu, int index) {
+uint32_t get_code8(Emulator* emu, int index) {
   return emu->memory[emu->eip + index];
 }
 
 /* memory配列の指定した番地から8ビットのint値を取得する関数 */
-init32_t get_sign_code8(Emulator* emu, int index) {
+int32_t get_sign_code8(Emulator* emu, int index) {
   return (int8_t)emu->memory[emu->eip + index];
 }
 
 /* memory配列の指定した番地から32ビットの値を取得する関数 */
-unit32_t get_code32(Emulator* emu, int index) {
+uint32_t get_code32(Emulator* emu, int index) {
   int i;
-  unit32_t ret = 0;
+  uint32_t ret = 0;
 
   /* i386はリトルエンディアンを採用しているので、
      リトルエンディアンでメモリの値を取得する */
@@ -70,10 +95,10 @@ unit32_t get_code32(Emulator* emu, int index) {
 void mov_r32_imm32(Emulator* emu) {
   /* このmov命令のオペコードはrをレジスタ番号だとすると0xb8+r */
   /* オペコード自身がレジスタの指定を含むタイプの命令 */
-  unit8_t  reg   = get_code8(emu, 0) - 0xB8;
+  uint8_t  reg   = get_code8(emu, 0) - 0xB8;
   /* オペコードのすぐ後に32ビットの即値がくるはずなので、
      get_code32で32ビット値を読み取ってレジスタに代入している */
-  unit32_t value = get_code32(emu, 1);
+  uint32_t value = get_code32(emu, 1);
 
   emu->registers[reg] = value;
   emu->eip += 5;  
@@ -112,7 +137,7 @@ int main(int args, char* argv[]) {
   Emulator* emu;
 
   /* コマンドライン引数が一つ指定されていることを確認 */
-  if(argc != 2) {
+  if(args != 2) {
     printf("usage: x86 filename\n");
     return 1;
   }
@@ -134,7 +159,7 @@ int main(int args, char* argv[]) {
   init_instructions();
 
   while(emu->eip < MEMORY_SIZE) {
-    unit8_t code = get_code8(emu, 0);
+    uint8_t code = get_code8(emu, 0);
     if(instructions[code] == NULL) {
       printf("\n\nNot Implemented: %x\n", code);
       break;
