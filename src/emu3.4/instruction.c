@@ -1,14 +1,79 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "instruction.h"
 #include "emulator.h"
 #include "emulator_function.h"
+#include "modrm.h"
 
 instruction_func_t* instructions[256];
 
+/* 加算をおこなう */
+static void add_rm32_r32(Emulator* emu) {
+  
+  emu->eip += 1;
+  ModRM modrm;
+  parse_modrm(emu, &modrm);
+  uint32_t r32  = get_r32(emu, &modrm);
+  uint32_t rm32 = get_rm32(emu, &modrm);
+  set_rm32(emu, &modrm, rm32 + r32);
+}
+
+static void sub_rm32_imm8(Emulator* emu, ModRM* modrm) {
+
+  uint32_t rm32 = get_rm32(emu, modrm);
+  uint32_t imm8 = (int32_t)get_sign_code8(emu, 0);
+  emu->eip += 1;
+  set_rm32(emu, modrm, rm32 - imm8);
+}
+
+/* 減算を行う */
+/* この減算命令はModR/MのREGビットをオペコードの拡張として使うタイプの命令
+   最初の１バイトだけでは実際の命令が決まらない*/
+static void code_83(Emulator* emu) {
+
+  emu->eip += 1;
+  ModRM modrm;
+  parse_modrm(emu, &modrm);
+
+  switch(modrm.opecode) {
+    /* REGビットが5のときにsub_rm32_imm8を呼び指す */
+  case 5:
+    sub_rm32_imm8(emu, &modrm);
+    break;
+  default:
+    printf("not implemented: 83 /%d\n", modrm.opecode);
+    exit(1);
+  }
+}
+
+static void inc_rm32(Emulator* emu, ModRM* modrm) {
+  uint32_t value = get_rm32(emu, modrm);
+  set_rm32(emu, modrm, value + 1);
+}
+
+/* インクリメントを行う */
+/* ModR/MのREGビットが0のときにincだと決まる。 */
+static void code_off(Emulator* emu) {
+  
+  emu->eip += 1;
+  ModRM modrm;
+  parse_modrm(emu, &modrm);
+
+  switch(modrm.opecode) {
+  case 0:
+    inc_rm32(emu, &modrm);
+    break;
+  default:
+    printf("not imiplemented: FF /%d\n", modrm.opecode);
+    exit(1);
+  }
+}
+
 /* 汎用レジスタに32ビットの即値をコピーするmov命令に対応する */
-void mov_r32_imm32(Emulator* emu) {
+static void mov_r32_imm32(Emulator* emu) {
   /* このmov命令のオペコードはrをレジスタ番号だとすると0xb8+r */
   /* オペコード自身がレジスタの指定を含むタイプの命令 */
   uint8_t  reg   = get_code8(emu, 0) - 0xB8;
@@ -18,6 +83,41 @@ void mov_r32_imm32(Emulator* emu) {
 
   emu->registers[reg] = value;
   emu->eip += 5;  
+}
+
+/* 32ビットの即値を、ModR/Mで指定されたRegisterまたは
+   メモリ領域に書き込む機械語(オペコード0xc7) */
+static void mov_rm32_imm32(Emulator* emu) {
+  /* 関数が呼ばれたときemu->eipはオペコードを指した状態なので、
+     インクリメントしてModR/Mバイトを指すように調整 */
+  emu->eip += 1;
+  ModRM modrm;
+  parse_modrm(emu, &modrm);
+  /* parse_modrmから戻るとemu->eipは即値を指しているはずなので、32ビットの即値を読み取る */
+  uint32_t value = get_code32(emu, 0);
+  emu->eip += 4;
+  /* modrmの設定に従って値を書き込む */
+  set_rm32(emu, &modrm, value);
+}
+
+/* rm32から32ビットを読み取りr32に書き込む */
+static void mov_r32_rm32(Emulator* emu) {
+
+  emu->eip += 1;
+  ModRM modrm;
+  parse_modrm(emu, &modrm);
+  uint32_t rm32 = get_rm32(emu, &modrm);
+  set_r32(emu, &modrm, rm32);
+}
+
+/* r32から32ビットを読み取りrm32に書き込む */
+static void mov_rm32_r32(Emulator* emu) {
+
+  emu->eip += 1;
+  ModRM modrm;
+  parse_modrm(emu, &modrm);
+  uint32_t r32 = get_r32(emu, &modrm);
+  set_rm32(emu, &modrm, r32);
 }
 
 /* 1バイトのメモリ番地を取るjump命令、ショートジャンプ命令に対応する */
@@ -37,13 +137,18 @@ void near_jump(Emulator* emu) {
   emu->eip += (diff + 5);
 }
 
-
 void init_instructions(void) {
   int i;
   memset(instructions, 0, sizeof(instructions));
+  instructions[0x01] = add_rm32_r32;
+  instructions[0x83] = code_83;
+  instructions[0x89] = mov_rm32_r32;
+  instructions[0x8B] = mov_r32_rm32;    
   for(i = 0; i < 8; i++) {
     instructions[0xB8 + i] = mov_r32_imm32;
   }
+  instructions[0xC7] = mov_rm32_imm32;
   instructions[0xE9] = near_jump;
-  instructions[0xEB] = short_jump;  
+  instructions[0xEB] = short_jump;
+  instructions[0xFF] = code_off;
 }
