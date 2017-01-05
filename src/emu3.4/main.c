@@ -13,6 +13,23 @@ char* registers_name[] = {
 /* メモリは1MB */
 #define MEMORY_SIZE (1024 * 1024)
 
+/* Emulatorのメモリにバイナリファイルの内容を512バイトコピーする */
+/* 機械語ファイルを読み込む(最大512バイト) */
+/* memoryの先頭ではなく0x7c00番地から機械語を配置する */
+static void read_binary(Emulator* emu, const char* filename) {
+  FILE* binary;
+
+  binary = fopen(filename, "rb");
+
+  if(binary == NULL) {
+    printf("%s ファイルを開けません\n", filename);
+    exit(1);
+  }
+  
+  /* Emulatorのメモリにバイナリファイルの内容を512バイトコピーする */
+  fread(emu->memory + 0x7c00, 1, 0x200, binary);
+  fclose(binary);
+}
 
 /* 汎用時レスタとプログラムカウンタの値を標準出力に出力する */
 static void dump_registers(Emulator* emu) {
@@ -57,7 +74,6 @@ void destroy_emu(Emulator* emu) {
 */
 int main(int args, char* argv[]) {
 
-  FILE* binary;
   Emulator* emu;
 
   /* コマンドライン引数が一つ指定されていることを確認 */
@@ -65,29 +81,24 @@ int main(int args, char* argv[]) {
     printf("usage: x86 filename\n");
     return 1;
   }
+  
+  /* 命令セットの初期化を行う */
+  init_instructions();
 
   /* EIPが0、ESPが0x7C00の状態のエミュレータを作る */
   /* 左からメモリ容量、eipの初期値、espの初期値 */
-  emu = create_emu(MEMORY_SIZE, 0x7c00, 0x7c00);
+  emu = create_emu(MEMORY_SIZE, 0x7c00, 0x7c00);  
 
-  binary = fopen(argv[1], "rb");
-  if(binary == NULL) {
-    printf("%sファイルが開けません\n", argv[1]);
-    return 1;
-  }
-
-  /* 機械語ファイルを読み込む(最大512バイト) */
-  /* memoryの先頭ではなく0x7c00番地から機械語を配置する */
-  /* この番地とeipの初期値、orgの値の３つの値が一致していて初めて正しくプログラムが動作する */
-  fread(emu->memory + 0x7c00, 1, 0x200, binary);
-  fclose(binary);
-
-
-  init_instructions();
+  /* 引数で与えられたバイナリを読み込む */
+  read_binary(emu, argv[1]);
 
   while(emu->eip < MEMORY_SIZE) {
     uint8_t code = get_code8(emu, 0);
+    /* 現在のプログラムカウンタと実行されるバイナリを出力する */
+    printf("EIP = %X, Code = %02X\n", emu->eip, code);
+    
     if(instructions[code] == NULL) {
+      /* 実装されてない命令が来たらEmulatorを終了する */      
       printf("\n\nNot Implemented: %x\n", code);
       break;
     }
@@ -97,7 +108,7 @@ int main(int args, char* argv[]) {
     
     /* 一つの命令を実行するたびにeipをチェックし、0ならメインループを終了する */
     /* 普通のCPUには終了機能はないが、エミュレータではプログラムの修了時にレジスタの値を表示したいので、明示的に終了させる仕組みが必要 */
-    if(emu->eip == 0x00) {
+    if(emu->eip == 0) {
       printf("\n\nend of program. \n\n");
       break;
     }

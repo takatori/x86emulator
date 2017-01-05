@@ -1,4 +1,4 @@
-TARGET = helloworld.bin
+TARGET = modrm-test.bin
 
 CC = gcc
 LD = ld
@@ -17,7 +17,7 @@ all :
 	$(CC) $(CFLAGS) -c $<
 
 %.bin : %.o Makefile
-	$(LD) $(LDFLAGS) -o $@ $<
 
+	$(LD) $(LDFLAGS) -o $@ $<
 %.bin : %.asm Makefile
 	$(AS) -f bin -o $@ $<

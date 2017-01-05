@@ -31,6 +31,14 @@ int32_t get_sign_code32(Emulator* emu, int index) {
   return (int32_t)get_code32(emu, index);
 }
 
+uint32_t get_register32(Emulator* emu, int index) {
+  return emu->registers[index];
+}
+
+void set_register32(Emulator* emu, int index, uint32_t value) {
+  emu->registers[index] = value;
+}
+
 uint32_t get_memory8(Emulator* emu, uint32_t address) {
   return emu->memory[address];
 }
