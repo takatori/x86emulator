@@ -1,7 +1,7 @@
 TARGET = emu.x86_64
 # オブジェクトファイル名を “objs” というマクロとして定義
 # “$(objs)” は “main.o” に置換される
-OBJS = main.o
+OBJS = main.o emulator_function.o instruction.o modrm.o
 CC = gcc
 CFLAGS += -Wall
 
