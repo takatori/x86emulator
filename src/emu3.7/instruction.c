@@ -10,6 +10,42 @@
 
 instruction_func_t* instructions[256];
 
+/* オペコードの下位3ビットにレジスタ番号が埋め込まれているタイプの命令 */
+/* push r32は50+rdなので、ベース地にレジスタ番号を足したものがオペコードになっていることがわかる */
+static void push_r32(Emulator* emu) {
+  /* オペコードからベース値を引き算することでレジスタ番号を得ることができる */
+  uint8_t reg = get_code8(emu, 0) - 0x50;
+  /* 得られたレジスタ番号を元にレジスタから値を読み込み、
+     emu->espが指すスタックトップにプッシュ */
+  push32(emu, get_register32(emu, reg));
+  emu->eip += 1;
+}
+
+/* オペコードの下位3ビットにレジスタ番号が埋め込まれているタイプの命令 */
+/* pop r32は58+rdなので、ベース地にレジスタ番号を足したものがオペコードになっていることがわかる */
+static void pop_r32(Emulator* emu) {
+  uint8_t reg = get_code8(emu, 0) - 0x58;
+  set_register32(emu, reg, pop32(emu));
+  emu->eip += 1;
+}
+
+/* callの次の命令の番地を基準にして前後32ビットの範囲でジャンプできる命令 */
+static void call_rel32(Emulator* emu) {
+  /* 1バイトのオペコードの次に32ビットの符号付き整数が来ることになっているので、
+     get_sign_code32で読み取る */
+  int32_t diff = get_sign_code32(emu, 1);
+  /* callの直後に来る命令の番地を計算しスタックにpushする */
+  /* このcall命令は全体で5バイトであるため、直後に来る命令はemu->eip + 5に配置される */
+  /* 直後の命令の先頭番地をpushしておくことで、あとでretに戻るときにきちんと処理が継続する */
+  push32(emu, emu->eip + 5);
+  /* 目的地にジャンプするためにeipを書き換える */
+  emu->eip += (diff + 5);
+}
+
+static void ret(Emulator* emu) {
+  emu->eip = pop32(emu);
+}
+
 /* 加算をおこなう */
 static void add_rm32_r32(Emulator* emu) {
   
@@ -141,13 +177,28 @@ void init_instructions(void) {
   int i;
   memset(instructions, 0, sizeof(instructions));
   instructions[0x01] = add_rm32_r32;
+
+  for(i = 0; i < 8; i++) {
+    instructions[0x50 + i] = push_r32;
+  }
+
+  for(i = 0; i < 8; i++) {
+    instructions[0x58 + i] = pop_r32;
+  }
+
+  
   instructions[0x83] = code_83;
   instructions[0x89] = mov_rm32_r32;
-  instructions[0x8B] = mov_r32_rm32;    
+  instructions[0x8B] = mov_r32_rm32;
+  
   for(i = 0; i < 8; i++) {
     instructions[0xB8 + i] = mov_r32_imm32;
   }
+
+  instructions[0xC3] = ret;
   instructions[0xC7] = mov_rm32_imm32;
+
+  instructions[0xE8] = call_rel32;
   instructions[0xE9] = near_jump;
   instructions[0xEB] = short_jump;
   instructions[0xFF] = code_off;

@@ -1,5 +1,24 @@
 #include "emulator_function.h"
 
+void push32(Emulator* emu, uint32_t value) {
+  
+  uint32_t address = get_register32(emu, ESP) - 4;
+  /* 先にespを減らしてから */
+  set_register32(emu, ESP, address);
+  /* スタックトップに値を書き込む */
+  set_memory32(emu, address, value);
+}
+
+uint32_t pop32(Emulator* emu) {
+
+  uint32_t address = get_register32(emu, ESP);
+  /* 先に値を読み出してから */
+  uint32_t ret     = get_memory32(emu, address);
+  /* espを増やす */
+  set_register32(emu, ESP, address + 4);
+  return ret;
+}
+
 /* memory配列の指定した番地から8ビットの値を取得する関数 
    関数の第二引数にその時のeipからオフセットを指定するとその番地から値を読み取って返す*/
 uint32_t get_code8(Emulator* emu, int index) {
