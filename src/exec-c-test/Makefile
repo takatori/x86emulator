@@ -2,13 +2,11 @@ TARGET = test.bin
 OBJS = crt0.o test.o
 
 CC = gcc
-LD = ld
+LD = ~/.local/binutils/bin/i386-unknown-linux-gnu-ld
 AS = nasm
 CFLAGS += -nostdlib -fno-asynchronous-unwind-tables \
-	 -g -fno-stack-protector -Wall
-LDFLAGS += -e start
-# --oformat=binary -Ttext 0x7c00 
-# LDFLAGS +=  -macosx_version_min 10.10 -lSystem
+	 -g -fno-stack-protector -target i386-pc-linux
+LDFLAGS += -e start -m elf_i386 --oformat=binary -Ttext 0x7c00 
 
 .PHONY: all
 all :
