@@ -94,6 +94,28 @@ static void sub_rm32_imm8(Emulator* emu, ModRM* modrm) {
   update_eflags_sub(emu, rm32, imm8, result);
 }
 
+/* cmp命令 */
+/* オペコードが0x3bであり、他の命令とは重複しない */
+static void cmp_r32_rm32(Emulator* emu) {
+  emu->eip += 1;
+  ModRM modrm;
+  parse_modrm(emu, &modrm);
+  uint32_t r32 = get_r32(emu, &modrm);
+  uint32_t rm32 = get_rm32(emu, &modrm);
+  uint64_t result = (uint64_t)r32 -(uint64_t)rm32;
+  update_eflags_sub(emu, r32, rm32, result);
+}
+
+/* cmp命令 */
+/* オペコードが0x83で、REGの値で最終的な命令を見分けるタイプ */
+static void cmp_rm32_imm8(Emulator* emu, ModRM* modrm) {
+  uint32_t rm32 = get_rm32(emu, modrm);
+  uint32_t imm8 = (int32_t)get_sign_code8(emu, 0);
+  emu->eip += 1;
+  uint64_t result = (uint64_t)rm32 - (uint64_t)imm8;
+  update_eflags_sub(emu, rm32, imm8, result);
+}
+
 /* 減算を行う */
 /* この減算命令はModR/MのREGビットをオペコードの拡張として使うタイプの命令
    最初の１バイトだけでは実際の命令が決まらない*/
@@ -113,6 +135,7 @@ static void code_83(Emulator* emu) {
     break;
   case 7:
     cmp_rm32_imm8(emu, &modrm);
+    break;
   default:
     printf("not implemented: 83 /%d\n", modrm.opecode);
     exit(1);
@@ -193,7 +216,7 @@ static void mov_rm32_r32(Emulator* emu) {
 /* 1バイトのメモリ番地を取るjump命令、ショートジャンプ命令に対応する */
 /* この命令はオペランドにバイトの符号付き整数(つまり2の補数表現で解釈される)を取りeipに加算する
    したがって現在地から前に127バイト、後ろに128バイトの範囲内でジャンプすることができる */
-void short_jump(Emulator* emu) {
+static void short_jump(Emulator* emu) {
   /* オペランドを8ビット符号付き整数としてdiffに読み込む */
   int8_t diff = get_sign_code8(emu, 1);
   /* jump命令はその次の命令の番地を起点にjump先を計算するので、
@@ -202,38 +225,19 @@ void short_jump(Emulator* emu) {
 }
 
 /* 32ビットの符号つき整数を取る相対ジャンプ命令 */
-void near_jump(Emulator* emu) {
+static void near_jump(Emulator* emu) {
   int32_t diff = get_sign_code32(emu, 1);
   emu->eip += (diff + 5);
 }
 
-/* cmp命令 */
-/* オペコードが0x3bであり、他の命令とは重複しない */
-static void cmp_r32_rm32(Emulator* emu) {
-  emu->eip += 1;
-  ModRM modrm;
-  parse_modrm(emu, &modrm);
-  uint32_t r32 = get_r32(emu, &modrm);
-  uint32_t rm32 = get_rm32(emu, &modrm);
-  uint64_t result = (uint64_t)r32 -(uint64_t)rm32;
-  update_eflags_sub(emu, r32, rm32, result);
-}
-
-/* cmp命令 */
-/* オペコードが0x83で、REGの値で最終的な命令を見分けるタイプ */
-static void cmp_rm32_imm8(Emulator* emu, ModRM* modrm) {
-  uint32_t rm32 = get_rm32(emu, modrm);
-  uint32_t imm8 = (int32_t)get_sign_code8(emu, 0);
-  emu->eip += 1;
-  uint64_t result = (uint64_t)rm32 - (uint64_t)imm8;
-  update_eflags_sub(emu, rm32, imm8, result);
-}
 
 
 void init_instructions(void) {
   int i;
   memset(instructions, 0, sizeof(instructions));
   instructions[0x01] = add_rm32_r32;
+  
+  instructions[0x3B] = cmp_r32_rm32;
 
   for(i = 0; i < 8; i++) {
     instructions[0x50 + i] = push_r32;
