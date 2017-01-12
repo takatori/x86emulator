@@ -230,7 +230,40 @@ static void near_jump(Emulator* emu) {
   emu->eip += (diff + 5);
 }
 
+#define DEFINE_JX(flag, is_flag) \
+static void j ## flag(Emulator* emu) \
+{ \
+  int diff = is_flag(emu) ? get_sign_code8(emu, 1) : 0; \
+  emu->eip += (diff + 2); \
+} \
+static void jn ## flag(Emulator* emu) \
+{ \
+  int diff = is_flag(emu) ? 0 : get_sign_code8(emu, 1); \
+  emu->eip += (diff + 2); \
+}
 
+DEFINE_JX(c, is_carry)
+DEFINE_JX(z, is_zero)
+DEFINE_JX(s, is_sign)
+DEFINE_JX(o, is_overflow)
+
+#undef DEFINE_JX
+
+/* 第1オペランドが第２オペランドより小さい場合(a < b)にジャンプする命令 */
+static void jl(Emulator* emu) {
+  /* 減算の結果がオーバーフローしないような２つの数の比較ではis_overflow(emu)は0 
+     すなわち、is_sign(emu) != 0となる
+     つまり、サインフラグが1ならジャンプし、0ならジャンプしない。
+     サインフラグが 1 <=> a-b < 0 <=> a < b なので大小判定ができている*/
+  int diff = (is_sign(emu) != is_overflow(emu)) ? get_sign_code8(emu, 1) : 0;
+  emu->eip += (diff + 2);
+}
+
+/* Jump If Less or Equalの略で、jlの条件に加えて２つの数値が等しいときもジャンプする命令 */
+static void jle(Emulator* emu) {
+  int diff = (is_zero(emu) || (is_sign(emu) != is_overflow(emu))) ? get_sign_code8(emu, 1) : 0;
+  emu->eip += (diff + 2);
+}
 
 void init_instructions(void) {
   int i;
@@ -249,6 +282,17 @@ void init_instructions(void) {
 
   instructions[0x68] = push_imm32;
   instructions[0x6A] = push_imm8;
+
+  instructions[0x70] = jo;
+  instructions[0x71] = jno;
+  instructions[0x72] = jc;
+  instructions[0x73] = jnc;
+  instructions[0x74] = jz;
+  instructions[0x75] = jnz;
+  instructions[0x78] = js;
+  instructions[0x79] = jns;
+  instructions[0x7C] = jl;
+  instructions[0x7E] = jle;    
   
   instructions[0x83] = code_83;
   instructions[0x89] = mov_rm32_r32;

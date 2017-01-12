@@ -53,6 +53,12 @@ void set_zero(Emulator* emu, int is_zero);
 void set_sign(Emulator* emu, int is_sign);
 void set_overflow(Emulator* emu, int is_overflow);
 
+/* EFLAGの各フラグ取得用関数 */
+int32_t is_carry(Emulator* emu);
+int32_t is_zero(Emulator* emu);
+int32_t is_sign(Emulator* emu);
+int32_t is_overflow(Emulator* emu);
+
 /* 減算によるEFLAGSの更新関数 */
 void update_eflags_sub(Emulator* emu, uint32_t v1, uint32_t v2, uint64_t result);
 
