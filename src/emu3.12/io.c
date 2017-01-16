@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "emulator.h"
 
-uint8_t io_int8(uint16_t address) {
+uint8_t io_in8(uint16_t address) {
   switch (address) {
   case 0x03f8:
     return getchar();

@@ -122,6 +122,14 @@ void set_zero(Emulator* emu, int is_zero){
   }  
 }
 
+void set_sign(Emulator* emu, int is_sign) {
+  if(is_sign) {
+    emu->eflags |= SIGN_FLAG;
+  } else {
+    emu->eflags &= ~SIGN_FLAG;
+  }
+}
+
 void set_overflow(Emulator* emu, int is_overflow)
 {
     if (is_overflow) {
@@ -130,6 +138,23 @@ void set_overflow(Emulator* emu, int is_overflow)
         emu->eflags &= ~OVERFLOW_FLAG;
     }
 }
+
+int32_t is_carry(Emulator* emu) {
+    return (emu->eflags & CARRY_FLAG) != 0;
+}
+
+int32_t is_zero(Emulator* emu) {
+    return (emu->eflags & ZERO_FLAG) != 0;
+}
+
+int32_t is_sign(Emulator* emu) {
+    return (emu->eflags & SIGN_FLAG) != 0;
+}
+
+int32_t is_overflow(Emulator* emu) {
+    return (emu->eflags & OVERFLOW_FLAG) != 0;
+}
+
 
 /* 減算の結果に応じてeflagsのフラグを更新する関数 */
 /* 引数v1とv2にはsub命令の2つのオペランドを渡し、resultには減算の結果を渡す */

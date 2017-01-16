@@ -6,8 +6,9 @@
 #include "instruction.h"
 #include "emulator.h"
 #include "emulator_function.h"
-#include "modrm.h"
 #include "io.h"
+
+#include "modrm.h"
 
 instruction_func_t* instructions[256];
 

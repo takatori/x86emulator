@@ -1,19 +1,12 @@
-TARGET = emu.x86_64
-# オブジェクトファイル名を “objs” というマクロとして定義
-# “$(objs)” は “main.o” に置換される
-OBJS = main.o emulator_function.o instruction.o modrm.o
+CFLAGS += -Wall -c
+OBJS = main.o emulator_function.o instruction.o modrm.o io.o
 CC = gcc
-CFLAGS += -Wall
 
-.PHONY: all
 all :
-	make $(TARGET)
+	make x86
 
-# “$<” という内部マクロを使用している. これは依存ファイルの先頭のファイル名を表す
-%.o : %.c Makefile
-	$(CC) $(CFLAGS) -c $<
+x86: $(OBJS) Makefile
+	$(CC) -o x86 $(OBJS)
 
-
-# “$@” という内部マクロを使用している. これはターゲット名を表す
-$(TARGET) : $(OBJS) Makefile
-	$(CC) -o $@ $(OBJS)
+%.o: %c. Makefile
+	$(CC) $(CFLAGS) -o $@ $<

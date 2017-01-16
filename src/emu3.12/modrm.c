@@ -93,6 +93,15 @@ void set_rm32(Emulator* emu, ModRM* modrm, uint32_t value) {
   }
 }
 
+uint8_t get_rm8(Emulator* emu, ModRM* modrm) {
+  if(modrm->mod == 3) {
+    return get_register8(emu, modrm->rm);
+  } else {
+    uint32_t address = calc_memory_address(emu, modrm);
+    return get_memory8(emu, address);
+  }
+}
+
 /* modとrmで指定した場所から32ビット値を読み込む関数 */
 uint32_t get_rm32(Emulator* emu, ModRM* modrm) {
 
@@ -102,6 +111,10 @@ uint32_t get_rm32(Emulator* emu, ModRM* modrm) {
     uint32_t address = calc_memory_address(emu, modrm);
     return get_memory32(emu, address);
   }
+}
+
+void set_r8(Emulator* emu, ModRM* modrm, uint8_t value){
+    set_register8(emu, modrm->reg_index, value);
 }
 
 void set_r32(Emulator* emu, ModRM* modrm, uint32_t value) {
