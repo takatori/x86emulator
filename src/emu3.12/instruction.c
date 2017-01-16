@@ -7,6 +7,7 @@
 #include "emulator.h"
 #include "emulator_function.h"
 #include "modrm.h"
+#include "io.h"
 
 instruction_func_t* instructions[256];
 
@@ -193,6 +194,14 @@ static void mov_rm32_imm32(Emulator* emu) {
   set_rm32(emu, &modrm, value);
 }
 
+static void  mov_r8_rm8(Emulator* emu) {
+  emu->eip += 1;
+  ModRM modrm;
+  parse_modrm(emu, &modrm);
+  uint32_t rm8 = get_rm8(emu, &modrm);
+  set_r8(emu, &modrm, rm8);
+}
+
 /* rm32から32ビットを読み取りr32に書き込む */
 static void mov_r32_rm32(Emulator* emu) {
 
@@ -265,13 +274,75 @@ static void jle(Emulator* emu) {
   emu->eip += (diff + 2);
 }
 
+
+/* in al, dx 命令*/
+/* dxはI/Oポート */
+/* dxのポートから位置バイトを読み取りalに格納する */
+static void in_al_dx(Emulator* emu) {
+  uint16_t address = get_register32(emu, EDX) & 0xffff;
+  uint8_t value = io_in8(address);
+  set_register8(emu, AL, value);
+  emu->eip += 1;
+}
+
+/* out dx, al命令 */
+/* alの値をdxポートへ出力する */
+static void out_dx_al(Emulator* emu) {
+  uint16_t address = get_register32(emu, EDX) & 0xffff;
+  uint8_t value = get_register8(emu, AL);
+  io_out8(address, value);
+  emu->eip += 1;
+}
+
+static void mov_r8_imm8(Emulator* emu) {
+  uint8_t reg = get_code8(emu, 0) - 0xB0;
+  set_register8(emu, reg, get_code8(emu, 1));
+  emu->eip += 2;
+}
+
+static void mov_rm8_r8(Emulator* emu) {
+  emu->eip += 1;
+  ModRM modrm;
+  parse_modrm(emu, &modrm);
+  uint32_t r8 = get_r8(emu, &modrm);  
+  set_rm8(emu, &modrm, r8);
+}
+
+static void cmp_al_imm8(Emulator* emu) {
+  uint8_t value = get_code8(emu, 1);
+  uint8_t al = get_code8(emu, AL);
+  uint64_t result = (uint64_t)al - (uint64_t)value;
+  update_eflags_sub(emu, al, value, result);
+  emu->eip += 2;
+}
+
+static void cmp_eax_imm32(Emulator* emu) {
+  uint32_t value = get_code32(emu, 1);
+  uint32_t eax = get_register32(emu, EAX);
+  uint64_t result = (uint64_t)eax - (uint64_t)value;
+  update_eflags_sub(emu, eax, value, result);
+  emu->eip += 5;  
+}
+
+static void inc_r32(Emulator* emu){
+  uint8_t reg = get_code8(emu, 0) - 0x40;
+  set_register32(emu, reg, get_register32(emu, reg) + 1);
+  emu->eip += 1;
+}
+
 void init_instructions(void) {
   int i;
   memset(instructions, 0, sizeof(instructions));
   instructions[0x01] = add_rm32_r32;
   
   instructions[0x3B] = cmp_r32_rm32;
+  instructions[0x3C] = cmp_al_imm8;
+  instructions[0x3D] = cmp_eax_imm32;
 
+  for(i = 0; i < 8; i++) {
+    instructions[0x40 + i] = inc_r32;
+  }
+  
   for(i = 0; i < 8; i++) {
     instructions[0x50 + i] = push_r32;
   }
@@ -295,8 +366,14 @@ void init_instructions(void) {
   instructions[0x7E] = jle;    
   
   instructions[0x83] = code_83;
+  instructions[0x88] = mov_rm8_r8;
   instructions[0x89] = mov_rm32_r32;
+  instructions[0x8A] = mov_r8_rm8;  
   instructions[0x8B] = mov_r32_rm32;
+
+  for(i = 0; i < 8; i++) {
+    instructions[0xB0 + i] = mov_r8_imm8;
+  }
   
   for(i = 0; i < 8; i++) {
     instructions[0xB8 + i] = mov_r32_imm32;
@@ -309,5 +386,7 @@ void init_instructions(void) {
   instructions[0xE8] = call_rel32;
   instructions[0xE9] = near_jump;
   instructions[0xEB] = short_jump;
+  instructions[0xEC] = in_al_dx;
+  instructions[0xEE] = out_dx_al;
   instructions[0xFF] = code_off;
 }

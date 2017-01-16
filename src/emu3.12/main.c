@@ -68,16 +68,43 @@ void destroy_emu(Emulator* emu) {
 }
 
 
+int opt_remove_at(int argc, char* argv[], int index) {
+  if(index < 0 || argc <= index) {
+    return argc;
+  } else {
+    int i = index;
+    for(; i < argc - 1; i++) {
+      argv[i] = argv[i + 1];
+    }
+    argv[i] = NULL;
+    return argc - 1;
+  }
+}
+
 /* 
 エミュレータ構造体を生成して初期化し、ファイルから機械語プログラムを読み込む処理 
 コマンドライン引数に機械語プログラムが格納されたファイルを指定する
 */
-int main(int args, char* argv[]) {
+int main(int argc, char* argv[]) {
 
   Emulator* emu;
+  int i;
+  int quiet = 0;
 
+  /* コマンドライン引数のオプションを解析する */
+  i = 1;
+  while(i < argc) {
+    /* argvを先頭から調べ、-qという文字列があったら*/
+    if(strcmp(argv[i], "-q") == 0) {
+      quiet = 1; /* quiet変数に1を設定 */
+      argc = opt_remove_at(argc, argv, i); /* -qをargvから削除 */
+    } else {
+      i++;
+    }
+  }
+  
   /* コマンドライン引数が一つ指定されていることを確認 */
-  if(args != 2) {
+  if(argc != 2) {
     printf("usage: x86 filename\n");
     return 1;
   }
@@ -95,7 +122,10 @@ int main(int args, char* argv[]) {
   while(emu->eip < MEMORY_SIZE) {
     uint8_t code = get_code8(emu, 0);
     /* 現在のプログラムカウンタと実行されるバイナリを出力する */
-    printf("EIP = %X, Code = %02X\n", emu->eip, code);
+    if(!quiet) {
+      printf("EIP = %X, Code = %02X\n", emu->eip, code);      
+    }
+
     
     if(instructions[code] == NULL) {
       /* 実装されてない命令が来たらEmulatorを終了する */      
