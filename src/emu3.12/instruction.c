@@ -311,7 +311,7 @@ static void mov_rm8_r8(Emulator* emu) {
 
 static void cmp_al_imm8(Emulator* emu) {
   uint8_t value = get_code8(emu, 1);
-  uint8_t al = get_code8(emu, AL);
+  uint8_t al = get_register8(emu, AL);
   uint64_t result = (uint64_t)al - (uint64_t)value;
   update_eflags_sub(emu, al, value, result);
   emu->eip += 2;
