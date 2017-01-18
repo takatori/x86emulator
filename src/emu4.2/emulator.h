@@ -9,7 +9,9 @@
 
 #include <stdint.h>
 
-enum Register { EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI, REGISTERS_COUNT };
+enum Register { EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI, REGISTERS_COUNT,
+                AL = EAX, CL = ECX, DL = EDX, BL = EBX,
+                AH = AL + 4, CH = CL + 4, DH = DL + 4, BH = BL + 4 };
 
 typedef struct {
   /* 汎用レジスタ　*/

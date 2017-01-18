@@ -68,4 +68,10 @@ uint32_t get_r32(Emulator* emu, ModRM* modrm);
 /* r32のレジスタの32bit値を設定する */
 void set_r32(Emulator* emu, ModRM* modrm, uint32_t value);
 
+/* 8ビット版 */
+uint8_t get_rm8(Emulator* emu, ModRM* modrm);
+void set_rm8(Emulator* emu, ModRM* modrm, uint8_t value);
+uint8_t get_r8(Emulator* emu, ModRM* modrm);
+void set_r8(Emulator* emu, ModRM* modrm, uint8_t value);
+
 #endif
